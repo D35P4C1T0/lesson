@@ -1,0 +1,8 @@
+# PDF generati da Typst (anche in sottocartelle)
+*.pdf
+
+# File temporanei/editor
+.DS_Store
+*~
+*.swp
+*.swo
