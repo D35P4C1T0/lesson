@@ -1,0 +1,15 @@
+{
+  "id": "123",
+  "name": {
+    "given": "Gustavo",
+    "family": "Guscio"
+  },
+  "birthDate": "1978-04-12",
+  "encounter": {
+    "department": "Emergency",
+    "status": "in-progress"
+  },
+  "conditions": [
+    "Atrial fibrillation"
+  ]
+}

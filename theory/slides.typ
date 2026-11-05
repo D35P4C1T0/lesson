@@ -1,8 +1,4 @@
-#import "../theme.typ": slide
-
-// Sostituire i punti seguenti con i contenuti della parte teorica.
-#slide("Theory", "Contesto e obiettivi")[
-  - *Da completare:* che cos'è e-CREAM e quale problema affronta.
-  - *Da completare:* architettura e componenti principali.
-  - *Da completare:* concetti necessari per gli esercizi.
-]
+// Theory entry point, also included by the parent lesson.
+#import "src/theme/standard.typ" as standard
+#import "src/content.typ": slides
+#slides(standard)

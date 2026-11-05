@@ -1,0 +1,185 @@
+openapi: 3.0.4
+info:
+  title: Fictional patient API — lesson example
+  version: 1.0.0
+  description: Fictional patient lookup and registration API for teaching OpenAPI. These are not
+    eCREAM API definitions, and no running server is provided. All example data is fictional. Registration
+    stores demographics; triage is a separate operation.
+paths:
+  /patients/{id}:
+    get:
+      operationId: getPatient
+      summary: Retrieve structured patient data
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: '123'
+      responses:
+        '200':
+          description: Patient found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '404':
+          description: Patient not found
+  /patients:
+    post:
+      operationId: registerPatient
+      summary: Register a patient
+      description: Create a patient record from demographic data. externalId must be unique in the
+        sandbox. Return the new identifier for later requests; this operation does not start triage.
+      security:
+      - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/Registration'
+      responses:
+        '201':
+          description: Patient created
+          headers:
+            Location:
+              description: Relative URL of the created patient record
+              schema:
+                type: string
+              example: /patients/123
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisteredPatient'
+              example:
+                id: '123'
+                externalId: SANDBOX-123
+                name: &id001
+                  given: Gustavo
+                  family: Guscio
+                birthDate: '1978-04-12'
+        '400':
+          description: Invalid registration data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Patient already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Patient:
+      type: object
+      required:
+      - id
+      - name
+      - birthDate
+      - encounter
+      - conditions
+      properties:
+        id:
+          type: string
+          example: '123'
+        name:
+          type: object
+          required:
+          - given
+          - family
+          properties:
+            given:
+              type: string
+            family:
+              type: string
+        birthDate:
+          type: string
+          format: date
+        encounter:
+          type: object
+          required:
+          - department
+          - status
+          properties:
+            department:
+              type: string
+            status:
+              type: string
+              enum:
+              - in-progress
+              - completed
+        conditions:
+          type: array
+          items:
+            type: string
+    NewPatient:
+      type: object
+      required:
+      - externalId
+      - name
+      - birthDate
+      properties:
+        externalId:
+          type: string
+          minLength: 1
+          description: Unique patient identifier in the fictional source system.
+          example: SANDBOX-123
+        name:
+          type: object
+          required:
+          - given
+          - family
+          properties:
+            given:
+              type: string
+              minLength: 1
+            family:
+              type: string
+              minLength: 1
+        birthDate:
+          type: string
+          format: date
+    RegisteredPatient:
+      allOf:
+      - $ref: '#/components/schemas/NewPatient'
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            type: string
+            example: '123'
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          example: PATIENT_ALREADY_EXISTS
+        message:
+          type: string
+          example: A patient with this externalId is already registered.
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Use the access token supplied for the fictional sandbox.
+  requestBodies:
+    Registration:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NewPatient'
+          example:
+            externalId: SANDBOX-123
+            name: *id001
+            birthDate: '1978-04-12'
