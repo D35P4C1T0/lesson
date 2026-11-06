@@ -40,7 +40,7 @@
   #place(top + left, dx: 51pt, dy: 392pt, line(length: 102pt, stroke: 3.6pt + accent))
 ])
 
-#let slide(title, body, source: none, note: none) = frame([
+#let slide(title, body, source: none, note: none, topic: "architecture") = frame([
   #place(top + left, dx: 51pt, dy: 31pt,
     box(width: 805pt)[#text(size: 42pt, weight: "bold")[#title]],
   )

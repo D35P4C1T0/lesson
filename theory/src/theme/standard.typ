@@ -1,11 +1,11 @@
-// Parent-theme geometry and typography, with two light colors and one saturated accent.
+// Default theory style: the shared lesson palette and Libertinus Sans typography.
 #import "../../../theme.typ" as parent
 #let ink = parent.dark
-#let accent = rgb("006F78")
+#let accent = parent.primary
 #let gray = parent.muted
-#let paper = rgb("FAFAF7")
-#let sky-blue = rgb("A3CEF1")
-#let warm-amber = rgb("F3C27A")
+#let paper = rgb("F7FAFC")
+#let sky-blue = rgb("DFEAFB")
+#let warm-amber = rgb("E8EFF4")
 #let node-fill = sky-blue
 #let radius = 0pt
 
@@ -25,7 +25,7 @@
 
 #let presentation(body) = {
   set document(title: "eCREAM — System Architecture and Deployment", author: "Matteo Girardi")
-  set text(font: "Libertinus Serif", fill: ink, size: 26pt, hyphenate: false)
+  set text(font: "Libertinus Sans", fill: ink, size: 26pt, hyphenate: false)
   set par(spacing: 0pt, leading: 0.3em)
   set block(spacing: 0pt)
   set grid(align: left + top)
@@ -36,7 +36,7 @@
 // Shared content uses a 32 × 18 cm coordinate system, scaled to the parent canvas.
 #let frame(body) = page(width: 16cm, height: 9cm, margin: 0pt, fill: paper,
   numbering: none, footer: none, header: none)[
-  #set text(font: "Libertinus Serif", fill: ink, hyphenate: false)
+  #set text(font: "Libertinus Sans", fill: ink, hyphenate: false)
   #set par(spacing: 0pt, leading: 0.3em)
   #set block(spacing: 0pt)
   #set grid(align: left + top)
@@ -62,10 +62,11 @@
 #let slide(title, body, source: none, topic: "architecture", note: none) = {
   let tone = (architecture: accent, api: api, security: security, integration: integration, deployment: deployment).at(topic)
   frame([
-    #place(top + left, dx: 51pt, dy: 31pt,
-      box(width: 805pt)[#text(size: 42pt, weight: "bold", fill: ink)[#title]],
+    #place(top + left, dx: 51pt, dy: 8pt, text(size: 18pt, weight: "bold", fill: accent)[e-CREAM / Theory])
+    #place(top + left, dx: 51pt, dy: 40pt,
+      box(width: 805pt)[#text(size: 38pt, weight: "bold", fill: ink)[#title]],
     )
-    #place(top + left, dx: 51pt, dy: 89pt, line(length: 72pt, stroke: 1.8pt + tone))
+    #place(top + left, dx: 51pt, dy: 98pt, line(length: 102pt, stroke: 3.6pt + tone))
     #place(top + left, dx: 51pt, dy: 110pt,
       block(width: 805pt, height: 350pt)[
         #set text(size: 26pt)

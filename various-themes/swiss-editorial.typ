@@ -32,7 +32,7 @@
 ]
 
 // Fixed title and content tracks; source references stay in the slide source.
-#let slide(title, body, source: [eCREAM D3.2 · Architectural Design · 29 November 2024], note: none) = [
+#let slide(title, body, source: [eCREAM D3.2 · Architectural Design · 29 November 2024], note: none, topic: "architecture") = [
   #set page(footer: context [
     #grid(columns: (1fr, auto), gutter: 24pt, align: bottom,
       text(size: 13pt, fill: gray)[#if note != none { note }],

@@ -1,4 +1,6 @@
-// Theory entry point, also included by the parent lesson.
-#import "src/theme/standard.typ" as standard
+// Theory entry point; the shared lesson style is the default.
+#import "src/theme/select.typ": select
 #import "src/content.typ": slides
-#slides(standard)
+#let selected = select(sys.inputs.at("theory-theme", default: "standard"))
+#show: selected.presentation
+#slides(selected)
