@@ -1,33 +1,80 @@
 name: Build Typst slides
+run-name: Lesson slides (${{ inputs.theme || 'standard' }}, ${{ inputs.build_type || 'final' }})
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      theme:
+        description: Theory theme (standard matches the lesson)
+        type: choice
+        required: true
+        default: standard
+        options:
+          - standard
+          - clinical
+          - clinical-light
+          - soft-play
+          - standard-bold
+          - standard-classic
+          - standard-saturated
+          - standard-soft
+          - swiss-editorial
+          - all
+      build_type:
+        description: Build type
+        type: choice
+        required: true
+        default: draft
+        options:
+          - draft
+          - final
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Compile PDF
+    name: Compile lesson PDFs
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Install Typst
-        uses: typst-community/setup-typst@v5
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          typst-version: 0.15.1
+          python-version: '3.13'
 
-      - name: Compile presentation
-        run: typst compile --font-path font main.typ slides.pdf
+      - name: Build selected themes
+        id: build
+        shell: bash
+        env:
+          BUILD_TYPE: ${{ inputs.build_type || 'final' }}
+          THEME: ${{ inputs.theme || 'standard' }}
+        run: |
+          set -euo pipefail
+          flags=(--lesson)
+          case "$BUILD_TYPE" in
+            draft) flags+=(--draft) ;;
+            final) ;;
+            *) echo "Unsupported build type: $BUILD_TYPE" >&2; exit 1 ;;
+          esac
+          if [[ "$THEME" == all ]]; then
+            themes=(standard clinical various-themes/*.typ)
+          else
+            themes=("$THEME")
+          fi
+          for theme in "${themes[@]}"; do
+            uv run --script theory/build-slides.py "$theme" "${flags[@]}"
+          done
 
-      - name: Upload PDF artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload lesson PDFs
+        uses: actions/upload-artifact@v7
         with:
-          name: e-cream-slides
-          path: slides.pdf
+          name: ecream-lesson-${{ inputs.theme || 'standard' }}-${{ inputs.build_type || 'final' }}
+          path: theory/builds/lesson-*.pdf
           if-no-files-found: error

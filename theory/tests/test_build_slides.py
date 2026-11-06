@@ -85,48 +85,84 @@ for page in draft:
             self.assertIn("Theme not found", result.stderr)
             self.assertEqual(output.read_bytes(), b"existing export")
 
-    def test_workflow_builds_every_theme_in_selected_mode(self):
-        check = '''import os, pathlib, subprocess, sys, tempfile, yaml
-workflow = yaml.load(pathlib.Path(sys.argv[1]).read_text(), Loader=yaml.BaseLoader)
-choice = workflow["on"]["workflow_dispatch"]["inputs"]["build_type"]
-assert choice["type"] == "choice"
-assert choice["options"] == ["draft", "final"]
-steps = workflow["jobs"]["build"]["steps"]
-step = next(step for step in steps if step.get("id") == "build")
-assert step["env"]["BUILD_TYPE"] == "${{ inputs.build_type }}"
-assert steps[-1]["with"]["path"] == "theory/builds/*.pdf"
-assert steps[-1]["with"]["if-no-files-found"] == "error"
-with tempfile.TemporaryDirectory() as directory:
-    root = pathlib.Path(directory)
-    (root / "various-themes").mkdir()
-    for name in ("alpha", "beta"):
-        (root / "various-themes" / (name + ".typ")).touch()
-    binary = root / "uv"
-    binary.write_text('#!/bin/sh\\nprintf "%s\\\\n" "$*" >> "$BUILD_LOG"\\n')
-    binary.chmod(0o755)
-    for mode in ("draft", "final", "invalid"):
-        log = root / (mode + ".log")
-        env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
-                   BUILD_TYPE=mode, BUILD_LOG=str(log))
-        result = subprocess.run(["bash", "-c", step["run"]], cwd=root, env=env,
-                                capture_output=True, text=True)
-        if mode == "invalid":
-            assert result.returncode != 0
-            assert not log.exists()
-            continue
-        assert result.returncode == 0, result.stderr
-        suffix = " --draft" if mode == "draft" else ""
-        assert log.read_text().splitlines() == [
-            "run --script theory/build-slides.py " + theme + suffix
-            for theme in ("standard", "clinical", "various-themes/alpha.typ", "various-themes/beta.typ")
-        ]
+    def test_workflows_select_themes_and_build_modes(self):
+        check = r'''import os, pathlib, subprocess, sys, tempfile, yaml
+repo = pathlib.Path(sys.argv[1])
+options = ["standard", "clinical"] + sorted(p.stem for p in (repo / "various-themes").glob("*.typ")) + ["all"]
+for lesson in (False, True):
+    filename = "build-slides.yml" if lesson else "build-theory.yml"
+    workflow = yaml.load((repo / ".github/workflows" / filename).read_text(), Loader=yaml.BaseLoader)
+    choices = workflow["on"]["workflow_dispatch"]["inputs"]
+    assert choices["build_type"]["options"] == ["draft", "final"]
+    assert choices["theme"]["options"] == options
+    assert choices["theme"]["default"] == "standard"
+    assert choices["theme"]["type"] == "choice"
+    steps = workflow["jobs"]["build"]["steps"]
+    step = next(step for step in steps if step.get("id") == "build")
+    assert steps[-1]["with"]["if-no-files-found"] == "error"
+    if lesson:
+        assert step["env"]["THEME"] == "${{ inputs.theme || 'standard' }}"
+        assert step["env"]["BUILD_TYPE"] == "${{ inputs.build_type || 'final' }}"
+        assert steps[-1]["with"]["path"] == "theory/builds/lesson-*.pdf"
+    else:
+        assert steps[-1]["with"]["path"] == "theory/builds/ecream*.pdf"
+    with tempfile.TemporaryDirectory() as directory:
+        root = pathlib.Path(directory)
+        (root / "various-themes").mkdir()
+        for name in ("alpha", "beta"):
+            (root / "various-themes" / (name + ".typ")).touch()
+        binary = root / "uv"
+        binary.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$BUILD_LOG"\n')
+        binary.chmod(0o755)
+        for mode in ("draft", "final", "invalid"):
+            for selected in ("standard", "soft-play", "all"):
+                log = root / (mode + selected + ".log")
+                env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
+                           BUILD_TYPE=mode, THEME=selected, BUILD_LOG=str(log))
+                result = subprocess.run(["bash", "-c", step["run"]], cwd=root, env=env,
+                                        capture_output=True, text=True)
+                if mode == "invalid":
+                    assert result.returncode != 0
+                    assert not log.exists()
+                    continue
+                assert result.returncode == 0, result.stderr
+                suffix = " --lesson" if lesson else ""
+                suffix += " --draft" if mode == "draft" else ""
+                themes = ("standard", "clinical", "various-themes/alpha.typ", "various-themes/beta.typ") if selected == "all" else (selected,)
+                assert log.read_text().splitlines() == [
+                    "run --script theory/build-slides.py " + theme + suffix for theme in themes
+                ]
 '''
         result = subprocess.run(
-            ["uv", "run", "--with", "pyyaml", "python", "-c", check,
-             str(ROOT / ".github/workflows/build-theory.yml")],
+            ["uv", "run", "--with", "pyyaml", "python", "-c", check, str(ROOT)],
             cwd=ROOT, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_complete_lesson_supports_selected_themes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for theme in ("standard", "soft-play"):
+                result = subprocess.run(
+                    [str(SCRIPT), theme, "--lesson", "--draft", "-o", str(Path(directory) / (theme + ".pdf"))],
+                    cwd=directory, capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+            check = '''import pathlib, pymupdf, sys
+root = pathlib.Path(sys.argv[1])
+for name in ("standard", "soft-play"):
+    doc = pymupdf.open(root / (name + ".pdf"))
+    theory = next(page for page in doc if "Identity and access" in page.get_text())
+    fonts = {font[3] for font in theory.get_fonts()}
+    assert any(("LibertinusSans" if name == "standard" else "Nunito") in font for font in fonts), fonts
+    exercise = next(page for page in doc if "Ex 1" in page.get_text() and "Theory" not in page.get_text())
+    assert any("LibertinusSans" in font[3] for font in exercise.get_fonts())
+    assert all("DRAFT" in page.get_text() for page in doc)
+'''
+            result = subprocess.run(
+                ["uv", "run", "--with", "pymupdf", "python", "-c", check, directory],
+                cwd=ROOT, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":
